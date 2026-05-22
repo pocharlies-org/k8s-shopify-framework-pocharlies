@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Real repo version: resources: [github.com/pocharlies/k8s-shopify-framework-pocharlies//base?ref=deploy/prod]
+resources:
+  - ../../base
+
+namePrefix: sii-
+
+labels:
+  - includeSelectors: true
+    pairs:
+      app.kubernetes.io/instance: sii
+
+images:
+  - name: shopify-app
+    newName: harbor.e-dani.com/homelab/shopify-sii-app
+    newTag: app-fallback-hotfix-202605221758
+
+patches:
+  - path: deployment-env.yaml
+    target: { kind: Deployment, name: app }
+  - target: { group: traefik.io, version: v1alpha1, kind: IngressRoute, name: app }
+    patch: |-
+      - op: replace
+        path: /spec/routes/0/match
+        value: Host(`skirmshop.e-dani.com`) && PathPrefix(`/sii`)

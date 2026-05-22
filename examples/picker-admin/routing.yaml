@@ -1,0 +1,52 @@
+# Bespoke routing for the picker admin tool. Names are explicit (this overlay
+# does not use namePrefix) so the Service/Middleware refs are unambiguous.
+# Authelia SSO gates both routes — the fix for the unprotected /picker backend.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: picker-redirect-root
+spec:
+  redirectRegex:
+    regex: ^https?://skirmshop\.e-dani\.com(:[0-9]+)?/picker$
+    replacement: https://skirmshop.e-dani.com/picker/shopify/purchase-orders
+    permanent: false
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: picker-strip
+spec:
+  stripPrefix:
+    prefixes:
+      - /picker
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: skirmshop-picker
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: skirmshop.e-dani.com
+    external-dns.alpha.kubernetes.io/target: "57.129.17.172"
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
+spec:
+  entryPoints: [websecure]
+  ingressClassName: traefik-edge
+  routes:
+    - match: Host(`skirmshop.e-dani.com`) && Path(`/picker`)
+      kind: Rule
+      priority: 300
+      middlewares:
+        - { name: authelia, namespace: authelia }
+        - { name: picker-redirect-root }
+      services:
+        - { name: skirmshop-picker, port: 80 }
+    - match: Host(`skirmshop.e-dani.com`) && PathPrefix(`/picker`)
+      kind: Rule
+      priority: 100
+      middlewares:
+        - { name: authelia, namespace: authelia }
+        - { name: picker-strip }
+      services:
+        - { name: skirmshop-picker, port: 80 }
+  tls:
+    store: { name: default, namespace: traefik-edge }

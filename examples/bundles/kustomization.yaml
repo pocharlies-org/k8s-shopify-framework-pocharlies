@@ -1,0 +1,40 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# EXAMPLE overlay (relative base for local `kubectl kustomize` validation).
+# In the real app repo (k8s-shopify-bundles-pocharlies/k8s/) this becomes:
+#   resources:
+#     - github.com/pocharlies/k8s-shopify-framework-pocharlies//base?ref=deploy/prod
+resources:
+  - ../../base
+
+# bundles-  +  base name "app"  =  bundles-app  (Deployment / Service / IngressRoute)
+namePrefix: bundles-
+
+# Unique selector label so the Service only matches this app's pods.
+labels:
+  - includeSelectors: true
+    pairs:
+      app.kubernetes.io/instance: bundles
+
+images:
+  - name: shopify-app
+    newName: harbor.e-dani.com/homelab/shopify-bundle-app
+    digest: sha256:ff57063ed7edf3d1ffd83aedd5292222fae1f43e685913343b35d185a93a2321
+
+patches:
+  # App-specific env + the real secret name (env merges by name; envFrom is replaced).
+  - path: deployment-env.yaml
+    target: { kind: Deployment, name: app }
+  # Container port (merge key is containerPort, so set it precisely).
+  - target: { group: apps, version: v1, kind: Deployment, name: app }
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/ports/0/containerPort
+        value: 3460
+  # Public path prefix.
+  - target: { group: traefik.io, version: v1alpha1, kind: IngressRoute, name: app }
+    patch: |-
+      - op: replace
+        path: /spec/routes/0/match
+        value: Host(`skirmshop.e-dani.com`) && PathPrefix(`/bundles`)

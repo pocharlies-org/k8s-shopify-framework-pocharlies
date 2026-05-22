@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+spec:
+  template:
+    spec:
+      imagePullSecrets:
+        - name: harbor-pull
+      containers:
+        - name: app
+          env:
+            - { name: PORT, value: "3462" }
+            # Own domain, served at root — no path prefix.
+            - { name: SHOPIFY_APP_URL, value: "https://affiliate.skirmshop.es" }
+            - { name: DATABASE_URL, value: "postgresql://$(DB_USER):$(DB_PASSWORD)@postgres-shared-rw.databases.svc.cluster.local:5432/affiliate" }
+            - { name: REDIS_URL, value: "redis://affiliate-redis.skirmshop.svc.cluster.local:6379" }
+            - name: _RMQUSER
+              valueFrom: { secretKeyRef: { name: rabbitmq-secrets, key: RABBITMQ_DEFAULT_USER } }
+            - name: _RMQPASS
+              valueFrom: { secretKeyRef: { name: rabbitmq-secrets, key: RABBITMQ_DEFAULT_PASS } }
+            - { name: SYNAPSE_AMQP_URL, value: "amqp://$(_RMQUSER):$(_RMQPASS)@shared-rabbitmq.databases.svc.cluster.local:5672/%2Fsynapse" }
+          envFrom:
+            - secretRef: { name: affiliate-secrets }
+          resources:
+            requests: { cpu: 50m, memory: 192Mi }
+            limits: { memory: 768Mi }

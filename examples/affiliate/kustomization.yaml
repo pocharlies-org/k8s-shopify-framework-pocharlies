@@ -1,0 +1,52 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Embedded Shopify app on its OWN domain (affiliate.skirmshop.es) with a Redis
+# sidecar. Ingress for affiliate.skirmshop.es / go.skirmshop.es lives outside
+# this repo, so the base IngressRoute is dropped.
+# Real repo version: resources: [github.com/pocharlies/k8s-shopify-framework-pocharlies//base?ref=deploy/prod, redis.yaml]
+resources:
+  - ../../base
+  - redis.yaml
+
+namePrefix: affiliate-
+
+labels:
+  - includeSelectors: true
+    pairs:
+      app.kubernetes.io/instance: affiliate
+
+images:
+  - name: shopify-app
+    newName: harbor.lan.e-dani.com/homelab/shopify-affiliate-app
+    newTag: k8s-20260522-6f3cfe2
+
+patches:
+  - path: deployment-patch.yaml
+    target: { kind: Deployment, name: app }
+  # Port + HTTP health probes (base default is a tcpSocket readiness probe).
+  - target: { group: apps, version: v1, kind: Deployment, name: app }
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/ports/0/containerPort
+        value: 3462
+      - op: replace
+        path: /spec/template/spec/containers/0/readinessProbe
+        value:
+          httpGet: { path: /health, port: http }
+          initialDelaySeconds: 15
+          periodSeconds: 10
+      - op: add
+        path: /spec/template/spec/containers/0/livenessProbe
+        value:
+          httpGet: { path: /health, port: http }
+          initialDelaySeconds: 45
+          periodSeconds: 20
+  # No public IngressRoute in this repo (handled at the edge for the custom domain).
+  - target: { group: traefik.io, version: v1alpha1, kind: IngressRoute, name: app }
+    patch: |-
+      $patch: delete
+      apiVersion: traefik.io/v1alpha1
+      kind: IngressRoute
+      metadata:
+        name: app

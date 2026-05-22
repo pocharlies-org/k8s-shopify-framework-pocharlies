@@ -1,0 +1,26 @@
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: app
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: skirmshop.e-dani.com
+    external-dns.alpha.kubernetes.io/target: "57.129.17.172"
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
+spec:
+  entryPoints: [websecure]
+  ingressClassName: traefik-edge
+  routes:
+    # Overlay replaces the match with the app's own PathPrefix.
+    # AUTH INVARIANT: embedded Shopify apps must NOT strip the prefix — the app
+    # is mounted at /<prefix> and SHOPIFY_APP_URL includes it. Use the
+    # strip-prefix component only for non-embedded internal tools.
+    - match: Host(`skirmshop.e-dani.com`) && PathPrefix(`/REPLACE-PREFIX`)
+      kind: Rule
+      # Empty by default so components (forward-auth, strip-prefix) can append
+      # with `op: add, path: /spec/routes/0/middlewares/-`.
+      middlewares: []
+      services:
+        - name: app
+          port: 80
+  tls:
+    store: { name: default, namespace: traefik-edge }

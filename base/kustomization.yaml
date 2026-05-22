@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# All skirmshop Shopify apps live in this namespace.
+namespace: skirmshop
+
+resources:
+  - deployment.yaml
+  - service.yaml
+  - ingressroute.yaml
+
+# Custom name references so namePrefix follows Traefik IngressRoute refs.
+configurations:
+  - kustomizeconfig/traefik-namereference.yaml
+
+# Non-selector labels applied to every resource. The per-app instance label
+# (which differentiates selectors) is added by each overlay via `labels:`.
+labels:
+  - includeSelectors: false
+    pairs:
+      app.kubernetes.io/part-of: skirmshop
+      app.kubernetes.io/managed-by: shopify-framework

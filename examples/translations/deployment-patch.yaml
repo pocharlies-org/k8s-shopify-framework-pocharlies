@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+spec:
+  template:
+    spec:
+      imagePullSecrets:
+        - name: harbor-pull
+      containers:
+        - name: app
+          env:
+            - { name: PORT, value: "3458" }
+            - { name: DEV_MODE, value: "false" }
+            - { name: SHOPIFY_APP_URL, value: "https://skirmshop.e-dani.com/translations" }
+            - { name: BRAIN_URL, value: "http://skirmshop-brain.skirmshop-brain-prod.svc.cluster.local" }
+            - { name: DATABASE_URL, value: "postgresql://$(DB_USER):$(DB_PASSWORD)@postgres-shared-rw.databases.svc.cluster.local:5432/translations" }
+            - name: SYNAPSE_DB_USER
+              valueFrom: { secretKeyRef: { name: translations-secrets, key: SYNAPSE_DB_USER } }
+            - name: SYNAPSE_DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: translations-secrets, key: SYNAPSE_DB_PASSWORD } }
+            - { name: SYNAPSE_DATABASE_URL, value: "postgresql://$(SYNAPSE_DB_USER):$(SYNAPSE_DB_PASSWORD)@postgres-shared-rw.databases.svc.cluster.local:5432/synapse" }
+            - name: _RMQUSER
+              valueFrom: { secretKeyRef: { name: rabbitmq-secrets, key: RABBITMQ_DEFAULT_USER } }
+            - name: _RMQPASS
+              valueFrom: { secretKeyRef: { name: rabbitmq-secrets, key: RABBITMQ_DEFAULT_PASS } }
+            - { name: SYNAPSE_AMQP_URL, value: "amqp://$(_RMQUSER):$(_RMQPASS)@shared-rabbitmq.databases.svc.cluster.local:5672/%2Fsynapse" }
+          envFrom:
+            - secretRef: { name: translations-secrets }
+          resources:
+            limits: { memory: 768Mi }
+          livenessProbe:
+            tcpSocket: { port: http }
+            initialDelaySeconds: 60
+            periodSeconds: 20

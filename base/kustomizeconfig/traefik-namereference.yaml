@@ -1,0 +1,16 @@
+# Teaches Kustomize that Traefik IngressRoute references Services and
+# Middlewares by name, so namePrefix/nameSuffix rewrite those refs too.
+nameReference:
+  - kind: Service
+    version: v1
+    fieldSpecs:
+      - kind: IngressRoute
+        group: traefik.io
+        path: spec/routes/services/name
+  - kind: Middleware
+    group: traefik.io
+    version: v1alpha1
+    fieldSpecs:
+      - kind: IngressRoute
+        group: traefik.io
+        path: spec/routes/middlewares/name

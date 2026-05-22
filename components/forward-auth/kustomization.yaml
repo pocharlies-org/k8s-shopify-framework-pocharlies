@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1alpha1
+kind: Component
+
+# Protects an app behind Authelia SSO (ForwardAuth). Use for internal admin
+# backends / dashboards that are NOT Shopify-embedded apps. Do NOT use on an
+# embedded Shopify app: Authelia would intercept the OAuth/iframe flow.
+#
+# Enable in an overlay with:
+#   components:
+#     - github.com/pocharlies/k8s-shopify-framework-pocharlies//components/forward-auth?ref=deploy/prod
+patches:
+  - target:
+      group: traefik.io
+      version: v1alpha1
+      kind: IngressRoute
+      name: app
+    patch: |-
+      - op: add
+        path: /spec/routes/0/middlewares/-
+        value:
+          name: authelia
+          namespace: authelia

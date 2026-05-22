@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+spec:
+  template:
+    spec:
+      imagePullSecrets:
+        - name: harbor-pull
+      containers:
+        - name: app
+          env:
+            - { name: PORT, value: "3473" }
+            - { name: DEV_MODE, value: "" }
+            - { name: LIVE_BRAIN, value: "" }
+            - { name: LIVE_SHOPIFY_WRITES, value: "" }
+            - { name: SHOPIFY_APP_URL, value: "https://skirmshop.e-dani.com/collections-tree" }
+            - { name: STOREFRONT_DOMAIN, value: "www.skirmshop.es" }
+            - { name: BRAIN_URL, value: "http://skirmshop-brain.skirmshop-brain-prod.svc.cluster.local" }
+            - { name: LLM_BASE_URL, value: "http://litellm.litellm.svc.cluster.local:4000/v1" }
+            # Override the shared DB name (base default is `skirmshop`).
+            - { name: DATABASE_URL, value: "postgresql://$(DB_USER):$(DB_PASSWORD)@postgres-shared-rw.databases.svc.cluster.local:5432/collections_tree" }
+            - name: _RMQUSER
+              valueFrom: { secretKeyRef: { name: rabbitmq-secrets, key: RABBITMQ_DEFAULT_USER } }
+            - name: _RMQPASS
+              valueFrom: { secretKeyRef: { name: rabbitmq-secrets, key: RABBITMQ_DEFAULT_PASS } }
+            - { name: SYNAPSE_AMQP_URL, value: "amqp://$(_RMQUSER):$(_RMQPASS)@shared-rabbitmq.databases.svc.cluster.local:5672/%2Fsynapse" }
+            - { name: SYNAPSE_TENANT, value: "skirmshop" }
+            - { name: SYNAPSE_EVENTS_EXCHANGE, value: "events" }
+          envFrom:
+            - secretRef: { name: collections-tree-secrets }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { memory: 1Gi }
+          readinessProbe:
+            initialDelaySeconds: 30
+          livenessProbe:
+            tcpSocket: { port: http }
+            initialDelaySeconds: 90
+            periodSeconds: 20

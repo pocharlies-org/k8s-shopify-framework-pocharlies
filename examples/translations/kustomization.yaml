@@ -1,0 +1,36 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Real repo version: resources: [github.com/pocharlies/k8s-shopify-framework-pocharlies//base?ref=deploy/prod, externalsecret.yaml]
+resources:
+  - ../../base
+  - externalsecret.yaml
+
+namePrefix: translations-
+
+labels:
+  - includeSelectors: true
+    pairs:
+      app.kubernetes.io/instance: translations
+
+images:
+  - name: shopify-app
+    newName: harbor.e-dani.com/homelab/shopify-translation-app
+    digest: sha256:58b61fbf535765078af4d068f5f7aedb2819d09d62a18c4a510e9adb8246077c
+
+patches:
+  - path: deployment-patch.yaml
+    target: { kind: Deployment, name: app }
+  - target: { group: apps, version: v1, kind: Deployment, name: app }
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/ports/0/containerPort
+        value: 3458
+      - op: add
+        path: /spec/template/spec/containers/0/ports/0/hostPort
+        value: 3458
+  - target: { group: traefik.io, version: v1alpha1, kind: IngressRoute, name: app }
+    patch: |-
+      - op: replace
+        path: /spec/routes/0/match
+        value: Host(`skirmshop.e-dani.com`) && PathPrefix(`/translations`)

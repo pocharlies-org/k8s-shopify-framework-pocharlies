@@ -1,0 +1,48 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Internal admin tool (NOT a Shopify-embedded app). Reuses the base workload
+# (Deployment + Service) but renames it to skirmshop-picker, replaces the
+# standard IngressRoute with bespoke routing (redirect + strip), and gates it
+# behind Authelia SSO — the fix for the unprotected /picker admin backend.
+# Uses explicit names (no namePrefix) because routing is hand-written.
+#
+# Real repo version: resources: [github.com/pocharlies/k8s-shopify-framework-pocharlies//base?ref=deploy/prod, routing.yaml]
+resources:
+  - ../../base
+  - routing.yaml
+
+labels:
+  - includeSelectors: true
+    pairs:
+      app.kubernetes.io/instance: picker
+
+images:
+  - name: shopify-app
+    newName: harbor.e-dani.com/homelab/skirmshop-picker
+    newTag: latest
+
+patches:
+  - path: deployment-patch.yaml
+    target: { kind: Deployment, name: app }
+  - target: { group: apps, version: v1, kind: Deployment, name: app }
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: skirmshop-picker
+      - op: replace
+        path: /spec/template/spec/containers/0/ports/0/containerPort
+        value: 3480
+  - target: { version: v1, kind: Service, name: app }
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: skirmshop-picker
+  # Drop the base single-route IngressRoute; picker ships its own (routing.yaml).
+  - target: { group: traefik.io, version: v1alpha1, kind: IngressRoute, name: app }
+    patch: |-
+      $patch: delete
+      apiVersion: traefik.io/v1alpha1
+      kind: IngressRoute
+      metadata:
+        name: app
