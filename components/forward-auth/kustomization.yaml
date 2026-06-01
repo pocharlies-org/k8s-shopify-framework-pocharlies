@@ -1,9 +1,9 @@
 apiVersion: kustomize.config.k8s.io/v1alpha1
 kind: Component
 
-# Protects an app behind Authelia SSO (ForwardAuth). Use for internal admin
+# Protects an app behind Keycloak SSO (ForwardAuth). Use for internal admin
 # backends / dashboards that are NOT Shopify-embedded apps. Do NOT use on an
-# embedded Shopify app: Authelia would intercept the OAuth/iframe flow.
+# embedded Shopify app: SSO would intercept the OAuth/iframe flow.
 #
 # Enable in an overlay with:
 #   components:
@@ -18,5 +18,5 @@ patches:
       - op: add
         path: /spec/routes/0/middlewares/-
         value:
-          name: authelia
-          namespace: authelia
+          name: sso-chain
+          namespace: keycloak

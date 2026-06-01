@@ -15,7 +15,7 @@ overlay with only what differs (name, image, port, path, secret, extra env).
 base/                     Deployment + Service + IngressRoute (the 90% case)
   kustomizeconfig/        Traefik nameReference (so namePrefix rewrites refs)
 components/
-  forward-auth/           Gate an app behind Authelia SSO (admin backends)
+  forward-auth/           Gate an app behind Keycloak SSO (admin backends)
 examples/                 Worked, validated overlays (relative base)
   bundles/  sii/  collections-tree/   standard embedded apps
   picker-admin/           bespoke admin tool: custom routing + SSO
@@ -108,10 +108,10 @@ defaults; keep them:
    them. If you get `/auth/login 404` or empty sessions, it's the app image, not
    this overlay.
 
-## Protect an admin backend (Authelia SSO)
+## Protect an admin backend (Keycloak SSO)
 
 Internal tools that are **not** Shopify-embedded (dashboards, the picker) should
-sit behind Authelia. For a standard single-route app, add the component:
+sit behind Keycloak. For a standard single-route app, add the component:
 
 ```yaml
 components:
@@ -119,12 +119,11 @@ components:
 ```
 
 For an app with bespoke routing (multiple routes, redirects), inline the
-`authelia` middleware ref directly in your IngressRoute instead — see
-`examples/picker-admin/routing.yaml`. The middleware is
-`authelia` in namespace `authelia` (`forwardAuth` to
-`authelia.authelia.svc.cluster.local/api/authz/forward-auth`).
+`sso-chain` middleware ref directly in your IngressRoute instead — see
+`examples/picker-admin/routing.yaml`. The middleware is `sso-chain` in namespace
+`keycloak`.
 
-> Never put Authelia in front of a Shopify-embedded app — it intercepts the
+> Never put SSO middleware in front of a Shopify-embedded app — it intercepts the
 > OAuth/iframe flow.
 
 ## Gotchas
@@ -133,7 +132,8 @@ For an app with bespoke routing (multiple routes, redirects), inline the
   only when the referenced resource lives in the *same layer*. Refs inside the
   base (the standard IngressRoute → base Service) rewrite fine. A ref **added by
   a component's patch is applied after the rename and is NOT rewritten** — that's
-  why `forward-auth` only references the external `authelia` (never renamed), and
+  why `forward-auth` only references the external `keycloak/sso-chain` middleware,
+  and
   why bespoke routing (picker) is written inline with explicit names.
 - **DB creds standardized** on `shared-postgres-app`. Apps that previously read
   `DB_USER`/`DB_PASSWORD` from their own `*-secrets` keep working (explicit env

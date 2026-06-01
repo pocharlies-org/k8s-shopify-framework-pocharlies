@@ -4,7 +4,7 @@ kind: Kustomization
 # Internal admin tool (NOT a Shopify-embedded app). Reuses the base workload
 # (Deployment + Service) but renames it to skirmshop-picker, replaces the
 # standard IngressRoute with bespoke routing (redirect + strip), and gates it
-# behind Authelia SSO — the fix for the unprotected /picker admin backend.
+# behind Keycloak SSO.
 # Uses explicit names (no namePrefix) because routing is hand-written.
 #
 # Real repo version: resources: [github.com/pocharlies/k8s-shopify-framework-pocharlies//base?ref=deploy/prod, routing.yaml]

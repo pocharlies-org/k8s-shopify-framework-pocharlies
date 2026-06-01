@@ -1,6 +1,6 @@
 # Bespoke routing for the picker admin tool. Names are explicit (this overlay
 # does not use namePrefix) so the Service/Middleware refs are unambiguous.
-# Authelia SSO gates both routes — the fix for the unprotected /picker backend.
+# Keycloak SSO gates both routes.
 apiVersion: traefik.io/v1alpha1
 kind: Middleware
 metadata:
@@ -36,7 +36,7 @@ spec:
       kind: Rule
       priority: 300
       middlewares:
-        - { name: authelia, namespace: authelia }
+        - { name: sso-chain, namespace: keycloak }
         - { name: picker-redirect-root }
       services:
         - { name: skirmshop-picker, port: 80 }
@@ -44,7 +44,7 @@ spec:
       kind: Rule
       priority: 100
       middlewares:
-        - { name: authelia, namespace: authelia }
+        - { name: sso-chain, namespace: keycloak }
         - { name: picker-strip }
       services:
         - { name: skirmshop-picker, port: 80 }
