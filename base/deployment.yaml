@@ -37,7 +37,25 @@ spec:
             - name: DB_PASSWORD
               valueFrom: { secretKeyRef: { name: shared-postgres-app, key: password } }
             # DB name defaults to `skirmshop`; override per-app (e.g. collections_tree).
-            - { name: DATABASE_URL, value: "postgresql://$(DB_USER):$(DB_PASSWORD)@postgres-shared-rw.databases.svc.cluster.local:5432/skirmshop" }
+            # INVARIANTE: `connection_limit` es OBLIGATORIO en toda DATABASE_URL
+            # de este framework, y los overlays que sobrescriben esta variable
+            # deben arrastrarlo.
+            #
+            # Sin él, Prisma dimensiona el pool con `cpus_fisicos * 2 + 1` LEIDO
+            # DEL HOST, no del límite del contenedor. Estos pods van a `role:
+            # edge` (sauvage, 48 vCPU) y el manifiesto no fija cpu limit, así
+            # que el techo por PrismaClient es ~49 — y son dos clientes, porque
+            # el framework crea el suyo en dist/db/client.js además del que
+            # instancia la app.
+            #
+            # Medido el 28-07-2026: bundles-app sostenía 96 conexiones físicas
+            # con 1 réplica y 0 activas, primer consumidor de postgres-shared
+            # (367/400 en total, 361 de ellas ociosas). Ver el postmortem en
+            # k8s-infra-pocharlies/databases/postgres-shared/role-settings.yaml.
+            #
+            # 5 por cliente = 10/pod, 20 durante un rolling update. Sube el
+            # número en el overlay si un app demuestra que necesita más.
+            - { name: DATABASE_URL, value: "postgresql://$(DB_USER):$(DB_PASSWORD)@postgres-shared-rw.databases.svc.cluster.local:5432/skirmshop?connection_limit=5&pool_timeout=15&connect_timeout=10" }
             # AUTH INVARIANT: must equal the public path-prefixed URL exactly
             # (https://skirmshop.e-dani.com/<prefix>). Mismatch breaks Shopify OAuth.
             - { name: SHOPIFY_APP_URL, value: "https://skirmshop.e-dani.com/REPLACE-PREFIX" }
