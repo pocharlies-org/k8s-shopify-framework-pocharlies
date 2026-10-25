@@ -13,8 +13,10 @@ spec:
         app.kubernetes.io/name: shopify-app
     spec:
       enableServiceLinks: false
+      # INFRA-992: sin fijar a role:edge — las apps Shopify se reprograman en
+      # cualquier nodo amd64 (atlantic/cp) cuando sauvage está saturado; las que
+      # tienen PVC local-path siguen a su nodo por afinidad de volumen.
       nodeSelector:
-        role: edge
         kubernetes.io/arch: amd64
       tolerations:
         - { key: role, operator: Equal, value: edge, effect: NoSchedule }
